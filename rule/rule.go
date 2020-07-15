@@ -90,6 +90,10 @@ func (p *Proxy) nextProxy(dstAddr string) *strategy.Proxy {
 
 	}
 
+	if proxy, ok := p.domainMap.Load("*"); ok {
+		return proxy.(*strategy.Proxy)
+	}
+
 	domainParts := strings.Split(host, ".")
 	length := len(domainParts)
 	for i := length - 1; i >= 0; i-- {
@@ -117,6 +121,12 @@ func (p *Proxy) Record(dialer proxy.Dialer, success bool) {
 // AddDomainIP used to update ipMap rules according to domainMap rule.
 func (p *Proxy) AddDomainIP(domain, ip string) error {
 	if ip != "" {
+		if proxy, ok := p.domainMap.Load("*"); ok {
+			p.ipMap.Store(ip, proxy)
+			log.F("[rule] add ip=%s, based on rule: domain=%s & domain/ip: %s/%s\n", ip, domain, domain, ip)
+			return nil
+		}
+
 		domainParts := strings.Split(domain, ".")
 		length := len(domainParts)
 		for i := length - 1; i >= 0; i-- {
@@ -126,6 +136,7 @@ func (p *Proxy) AddDomainIP(domain, ip string) error {
 			if dialer, ok := p.domainMap.Load(pDomain); ok {
 				p.ipMap.Store(ip, dialer)
 				log.F("[rule] add ip=%s, based on rule: domain=%s & domain/ip: %s/%s\n", ip, pDomain, domain, ip)
+				return nil
 			}
 		}
 	}
